@@ -25,6 +25,7 @@
 /* Begin PBXFileReference section */
 		5CB60A3F2189AB7800E10781 /* Ca1 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Ca1; sourceTree = BUILT_PRODUCTS_DIR; };
 		5CB60A422189AB7800E10781 /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
+		5CB60A492189ABA400E10781 /* small_purchases.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = small_purchases.txt; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,6 +59,7 @@
 			isa = PBXGroup;
 			children = (
 				5CB60A422189AB7800E10781 /* main.c */,
+				5CB60A492189ABA400E10781 /* small_purchases.txt */,
 			);
 			path = Ca1;
 			sourceTree = "<group>";
