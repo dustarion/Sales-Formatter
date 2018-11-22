@@ -21,6 +21,7 @@ void printTime();
 
 void printTotalSales(float);
 void printAverageSales(int, float); 
+void printAverageItemSales(int, float);
 
 void readPurchaseRecordFile(FILE*);
 void setupDirectory();
@@ -29,11 +30,9 @@ void updateSalesEntries (char*, char*);
 void updateCity (char*, float);
 void updateItemCategory (char*, float);
 
-void sortCities ();
 void printTopThreeCities ();
 void printBottomThreeCities ();
 
-void sortItemCategories ();
 void printTopThreeItemCategories ();
 void printBottomThreeItemCategories ();
 
@@ -52,13 +51,12 @@ typedef struct itemCategory {
     struct itemCategory *next;
 } itemCategoryNode;
 
-// Structs Setup
-struct city cities[500]; // Temporary Upper Limit (Linked List Later)
+// Linked List Setup
 int cityCount = 0;
-cityNode * head = NULL;
+cityNode * chead = NULL;
 
-struct itemCategory itemCategories[500]; // Temporary Upper Limit (Linked List Later)
 int itemCategoryCount = 0;
+itemCategoryNode * ihead = NULL;
 
 double totalSales = 0;
 int totalTransactions = 0;
@@ -71,7 +69,7 @@ int main(int argc, const char * argv[]) {
 
     // Check if Correct number of parameters
     if ((argc < 2)||( argc > 2)) {
-        printf("Wrong number of parameters!\n");
+        printf("Please only input one argument.\nTry again.\n\n");
         exit(1);
     }
 
@@ -79,7 +77,13 @@ int main(int argc, const char * argv[]) {
     setupDirectory();
 
 	// Read the txt File
-    FILE *fp = fopen(argv[1], "r");
+    FILE *fp;
+
+    // Ensure File Exists
+    if((fp = fopen(argv[1], "r")) == NULL) {
+        printf("Unable to open file %s.\nProgram Terminated\n", argv[1]);
+        return 1;
+    }
 	readPurchaseRecordFile(fp);
 
     // Print the total sales of the year.
@@ -88,19 +92,16 @@ int main(int argc, const char * argv[]) {
     // Print the average sales
     printAverageSales(cityCount, totalSales/cityCount);
 
-    // Sort the cities
-    //sortCities();
-
     // Print City Data
     printTopThreeCities();
     printBottomThreeCities();
 
-    // Sort the Item Categories
-    //sortItemCategories();
+    // Print the average sales for item categories.
+    printAverageItemSales(itemCategoryCount, totalSales/itemCategoryCount);
 
     // Print Item Categories Data
-    //printTopThreeItemCategories();
-    //printBottomThreeItemCategories();
+    printTopThreeItemCategories();
+    printBottomThreeItemCategories();
 
     // Print Ending Time
     printTime();
@@ -108,23 +109,27 @@ int main(int argc, const char * argv[]) {
     return 0;
 }
 
-// Print Functions
+// General Print Functions
 
 void printTime() {
     time_t ltime;
     ltime = time(NULL);
-    printf("%s\n", asctime(localtime(&ltime)));
+    printf("\033[0;32m%s\033[0m\n", asctime(localtime(&ltime)));
 }
 
 void printTotalSales(float totalSales) {
-    printf("\nTotal Sales of the year is: $%.2f\n", totalSales);
+    printf("Total Sales of the year is: \033[1;36m$%.2f\033[0m\n", totalSales);
 }
 
 void printAverageSales(int numberOfCities, float averageSales) {
-    printf("\nThe average sales for %d transactions for %d cities are : $%.2f\n", totalTransactions, numberOfCities, averageSales);
+    printf("\nThe average sales for \033[0;36m%d\033[0m transactions for \033[0;36m%d\033[0m cities are : \033[1;36m$%.2f\033[0m\n", totalTransactions, numberOfCities, averageSales);
 }
 
-// General Functions
+void printAverageItemSales(int numberOfItemCategories, float averageSales) {
+    printf("\nThe average sales from \033[0;36m%d\033[0m Item Categories are : \033[1;36m$%.2f\033[0m\n", numberOfItemCategories, averageSales);
+}
+
+// File IO Functions
 void readPurchaseRecordFile(FILE *fp) {
     
     // Definitions
@@ -176,7 +181,8 @@ void setupDirectory() {
 }
 
 void updateSalesEntries (char cityName[50], char line[255]) {
-    /*char fileName[64];
+    
+    char fileName[64];
     strcpy(fileName, "./reports/");
     strcat(fileName, cityName);
     strcat(fileName, ".txt"); 
@@ -186,29 +192,30 @@ void updateSalesEntries (char cityName[50], char line[255]) {
     }
 
     fprintf(output, "%s\n", line);
-    fclose(output);*/
+    fclose(output);
 }
 
+// Linked List Functions
 void updateCity (char cityName[50], float salesValue) {
-
     if (cityCount == 0) {
         // New City
         // No Cities Currently Exist
         // Create head of the linked list.
-        head = malloc(sizeof(cityNode));
-        if (head == NULL) {
+        chead = malloc(sizeof(cityNode));
+        if (chead == NULL) {
             // Malloc Returned Null
+            printf("Unable to allocate memory.\n");
         }
-        strcpy(head->name, cityName);
-        head->totalSales = salesValue;
-        head->next = NULL;
+        strcpy(chead->name, cityName);
+        chead->totalSales = salesValue;
+        chead->next = NULL;
         cityCount++;
     }
 
     // Check if the city already matches one of those existing.
     else {
         // Iterate through the linked list.
-        cityNode * current = head;
+        cityNode * current = chead;
 
         while (current != NULL) {
             //printf("Comparing%s and %s, it is %d\n", cityName, current->name, strcmp(cityName, current->name));
@@ -223,7 +230,7 @@ void updateCity (char cityName[50], float salesValue) {
         }
 
         // City does not Exist.
-        current = head; // Reset Current
+        current = chead; // Reset Current
 
         while (current->next != NULL) {
             current = current->next;
@@ -243,92 +250,60 @@ void updateCity (char cityName[50], float salesValue) {
 
 void updateItemCategory (char itemCategoryName[50], float salesValue) {
     if (itemCategoryCount == 0) {
-        //New item category
-        strcpy(itemCategories[itemCategoryCount].name ,itemCategoryName);
-        itemCategories[itemCategoryCount].totalSales = salesValue;
+        // New Item Category
+        // No Item Categories Currently Exist
+        // Create head of the linked list.
+        ihead = malloc(sizeof(itemCategoryNode));
+        if (ihead == NULL) {
+            // Malloc Returned Null
+            printf("Unable to allocate memory.\n");
+        }
+        strcpy(ihead->name, itemCategoryName);
+        ihead->totalSales = salesValue;
+        ihead->next = NULL;
         itemCategoryCount++;
     }
 
-    // Check if the item category already matches one of those existing.
+    // Check if the category already matches one of those existing.
     else {
-        for (int i = 0; i < itemCategoryCount; i++) {
-            if (strcmp(itemCategoryName, itemCategories[i].name) == 0) {
-                // City Exists.
-                itemCategories[i].totalSales += salesValue;
+        // Iterate through the linked list.
+        itemCategoryNode * current = ihead;
+
+        while (current != NULL) {
+
+            if (strcmp(itemCategoryName, current->name) == 0) {
+                // Category Exists.
+                current->totalSales += salesValue;
                 return;
             }
+
+            current = current->next; // Move to the next value
         }
 
-        // Item category does not Exist.
-        strcpy(itemCategories[itemCategoryCount].name ,itemCategoryName);
-        itemCategories[itemCategoryCount].totalSales = salesValue;
+        // Category does not Exist.
+        current = ihead; // Reset Current
+
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        // Current should now be pointed at the last item in the linked list.
+        
+        // Add a new variable
+        current->next = malloc(sizeof(itemCategoryNode));
+        strcpy(current->next->name, itemCategoryName);
+        current->next->totalSales = salesValue;
+        current->next->next = NULL;
+
+        // Update ItemCategoryCount
         itemCategoryCount++;
     }
 }
 
-void sortCities () {
-    int swapsMade;
-    cityNode * current = head;
 
-    do {
-        swapsMade = 0;
+// Results Printing Functions
 
-        // Sort everything
-        while (current != NULL) {
-            
-            if  (current->next != NULL) {
-                // Check if its the head
-                if (current == head) {
-
-                    // Head
-                    if ((current->next->totalSales) > current->totalSales) {
-                        // Different method depending on 2, or 3 and above.
-                        if (current->next->next != NULL) {
-                            // 3 and above inside linked list.
-                            cityNode * nodeA = current->next->next;
-                            current->next->next = head;
-                            current->next = nodeA;
-                        }
-                        else {
-                            // 2 only
-                            current->next->next = head;
-                            head->next = NULL;
-                            head = current->next;
-                        }
-
-                        swapsMade++;
-                    }
-
-
-                }
-
-                else if (current->next->next != NULL) {
-                    // Normal Sorting
-
-                    if ((current->next->next->totalSales) > (current->next->totalSales)) {
-                        // Swap next and next->next in the linked list
-                        cityNode * nodeA = current->next;
-                        cityNode * nodeB = current->next->next;
-                        
-                        current->next =  nodeB;
-                        nodeA->next = nodeB->next;
-                        nodeB->next = nodeA;
-                        swapsMade++;
-                    }
-                }
-            }
-
-            current = current->next;
-        }
-
-        current = head; // Reset the head for second sort iteration.
-    } while (swapsMade > 0);
-}
-
-// Sort Cities must be run first
 void printTopThreeCities () {
     printf("\nTop Three Cities\n=======================================================================\n");
-    cityNode * current = head;
 
     cityNode * first = malloc(sizeof(cityNode));
     cityNode * second = malloc(sizeof(cityNode));
@@ -336,7 +311,93 @@ void printTopThreeCities () {
 
     first->totalSales = second->totalSales = third->totalSales = -DBL_MAX;
 
-    //cityNode * current = head;
+    cityNode * current = chead;
+    while (current != NULL) {
+        if (current->totalSales > first->totalSales) {
+            third = second;
+            second = first;
+            first = current;
+        }
+
+        else if (current->totalSales > second->totalSales) {
+            third = second;
+            second = current;
+        }
+
+        else if (current->totalSales > third->totalSales) {
+            third = current;
+        }
+        
+        current = current->next;
+    }
+
+    printf("\033[0;33m%*s\033[0m", -50, first->name); // Name
+    printf("\t\033[1;36m%*.2lf\033[0m \n", 15, first->totalSales); // Total Sales
+
+    printf("\033[0;33m%*s\033[0m", -50, second->name); // Name
+    printf("\t\033[1;36m%*.2lf\033[0m \n", 15, second->totalSales); // Total Sales
+
+    printf("\033[0;33m%*s\033[0m", -50, third->name); // Name
+    printf("\t\033[1;36m%*.2lf\033[0m \n", 15, third->totalSales); // Total Sales
+
+    printf("=======================================================================\n");
+}
+
+// Sort Cities must be run first
+void printBottomThreeCities () {
+    printf("\nBottom Three Cities\n=======================================================================\n");
+
+    cityNode * first = malloc(sizeof(cityNode));
+    cityNode * second = malloc(sizeof(cityNode));
+    cityNode * third = malloc(sizeof(cityNode));
+
+    first->totalSales = second->totalSales = third->totalSales = DBL_MAX;
+
+    cityNode * current = chead;
+    while (current != NULL) {
+        if (current->totalSales < third->totalSales) {
+
+            first = second;
+            second = third;
+            third = current;
+        }
+
+        else if (current->totalSales < second->totalSales) {
+            first = second;
+            second = current;
+        }
+
+        else if (current->totalSales < first->totalSales) {
+            first = current;
+        }
+        
+        current = current->next;
+    }
+
+    //Print
+    printf("\033[0;33m%*s\033[0m", -50, first->name); // Name
+    printf("\t\033[1;36m%*.2lf\033[0m \n", 15, first->totalSales); // Total Sales
+
+    printf("\033[0;33m%*s\033[0m", -50, second->name); // Name
+    printf("\t\033[1;36m%*.2lf\033[0m \n", 15, second->totalSales); // Total Sales
+
+    printf("\033[0;33m%*s\033[0m", -50, third->name); // Name
+    printf("\t\033[1;36m%*.2lf\033[0m \n", 15, third->totalSales); // Total Sales
+
+    printf("=======================================================================\n");
+}
+
+// Sort Item Categories must be run first
+void printTopThreeItemCategories () {
+    printf("\nTop Three Item Categories\n=======================================================================\n");
+
+    itemCategoryNode * first = malloc(sizeof(itemCategoryNode));
+    itemCategoryNode * second = malloc(sizeof(itemCategoryNode));
+    itemCategoryNode * third = malloc(sizeof(itemCategoryNode));
+
+    first->totalSales = second->totalSales = third->totalSales = -DBL_MAX;
+
+    itemCategoryNode * current = ihead;
     while (current != NULL) {
         if (current->totalSales > first->totalSales) {
             third = second;
@@ -357,31 +418,28 @@ void printTopThreeCities () {
     }
 
     //Print
-    printf("%*s", -50, first->name); // Name
-    printf("\t%*.2lf \n", 15, first->totalSales); // Total Sales
+    printf("\033[0;33m%*s\033[0m", -50, first->name); // Name
+    printf("\t\033[1;36m%*.2lf\033[0m \n", 15, first->totalSales); // Total Sales
 
-    printf("%*s", -50, second->name); // Name
-    printf("\t%*.2lf \n", 15, second->totalSales); // Total Sales
+    printf("\033[0;33m%*s\033[0m", -50, second->name); // Name
+    printf("\t\033[1;36m%*.2lf\033[0m \n", 15, second->totalSales); // Total Sales
 
-    printf("%*s", -50, third->name); // Name
-    printf("\t%*.2lf \n", 15, third->totalSales); // Total Sales
+    printf("\033[0;33m%*s\033[0m", -50, third->name); // Name
+    printf("\t\033[1;36m%*.2lf\033[0m \n", 15, third->totalSales); // Total Sales
 
     printf("=======================================================================\n");
 }
 
-// Sort Cities must be run first
-void printBottomThreeCities () {
-    printf("\nBottom Three Cities\n=======================================================================\n");
+void printBottomThreeItemCategories () {
+    printf("\nBottom Three Item Categories\n=======================================================================\n");
 
-    cityNode * current = head;
-
-    cityNode * first = malloc(sizeof(cityNode));
-    cityNode * second = malloc(sizeof(cityNode));
-    cityNode * third = malloc(sizeof(cityNode));
+    itemCategoryNode * first = malloc(sizeof(itemCategoryNode));
+    itemCategoryNode * second = malloc(sizeof(itemCategoryNode));
+    itemCategoryNode * third = malloc(sizeof(itemCategoryNode));
 
     first->totalSales = second->totalSales = third->totalSales = DBL_MAX;
 
-    //cityNode * current = head;
+    itemCategoryNode * current = ihead;
     while (current != NULL) {
         if (current->totalSales < third->totalSales) {
 
@@ -395,7 +453,7 @@ void printBottomThreeCities () {
             second = current;
         }
 
-        else if (current->totalSales > first->totalSales) {
+        else if (current->totalSales < first->totalSales) {
             first = current;
         }
         
@@ -403,75 +461,14 @@ void printBottomThreeCities () {
     }
 
     //Print
-    printf("%*s", -50, first->name); // Name
-    printf("\t%*.2lf \n", 15, first->totalSales); // Total Sales
+    printf("\033[0;33m%*s\033[0m", -50, first->name); // Name
+    printf("\t\033[1;36m%*.2lf\033[0m \n", 15, first->totalSales); // Total Sales
 
-    printf("%*s", -50, second->name); // Name
-    printf("\t%*.2lf \n", 15, second->totalSales); // Total Sales
+    printf("\033[0;33m%*s\033[0m", -50, second->name); // Name
+    printf("\t\033[1;36m%*.2lf\033[0m \n", 15, second->totalSales); // Total Sales
 
-    printf("%*s", -50, third->name); // Name
-    printf("\t%*.2lf \n", 15, third->totalSales); // Total Sales
+    printf("\033[0;33m%*s\033[0m", -50, third->name); // Name
+    printf("\t\033[1;36m%*.2lf\033[0m \n", 15, third->totalSales); // Total Sales
 
-    printf("=======================================================================\n");
+    printf("=======================================================================\n\n");
 }
-
-void sortItemCategories () {
-
-    // Reset the order variables
-    for (int i = 0; i < itemCategoryCount; i++) {
-        itemCategories[i].order = 0;
-    }
- 
-    int order = 1;
-    while (order <= itemCategoryCount) {
-        double highestSale = -100.0;
-        for (int i = 0; i < itemCategoryCount; i++) {
-            if (itemCategories[i].order == 0) {
-                if (itemCategories[i].totalSales > highestSale) {
-                    highestSale = itemCategories[i].totalSales; // Update Highest Sales
-                }
-            }
-        }
-
-        for (int i = 0; i < itemCategoryCount; i++) {
-            if (itemCategories[i].totalSales == highestSale) {
-                itemCategories[i].order = order;
-                order++;
-            }
-        }
-    }
-}
-
-// Sort Item Categories must be run first
-void printTopThreeItemCategories () {
-    printf("\nTop Three Item Categories\n=======================================================================\n");
-
-    for (int order = 1; order <= 3; order++) {
-        for (int i = 0; i < itemCategoryCount; i++) {
-            if (itemCategories[i].order == order) {
-                printf("%*s", -50, itemCategories[i].name); // Item Category Name
-                printf("\t%*.2lf \n", 15, itemCategories[i].totalSales);
-            }
-        }
-    }
-    printf("=======================================================================\n");
-}
-
-// Sort Cities must be run first
-void printBottomThreeItemCategories () {
-    printf("\nBottom Three Item Categories\n=======================================================================\n");
-
-    for (int order = itemCategoryCount-2; order <= itemCategoryCount; order++) {
-        for (int i = 0; i < itemCategoryCount; i++) {
-            if (itemCategories[i].order == order) {
-                printf("%*s", -50, itemCategories[i].name); // City Name
-                printf("\t%*.2lf \n", 15, itemCategories[i].totalSales);
-            }
-        }
-    }
-
-    printf("=======================================================================\n");
-}
-
-
-
