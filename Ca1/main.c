@@ -15,19 +15,23 @@
 #include <math.h>
 #include <time.h>
 #include <float.h>
+#include <errno.h>
 
 // Function Prototypes
 void printTime();
 
-void printTotalSales(float);
-void printAverageSales(int, float); 
-void printAverageItemSales(int, float);
+void printTotalSales (float);
+void printAverageSales (int, float); 
+void printAverageItemSales (int, float);
 
-void readPurchaseRecordFile(FILE*);
-void setupDirectory();
-void updateSalesEntries (char*, char*);
+// File IO
+void readPurchaseRecordFile (FILE*);
+void setupDirectory ();
+FILE *updateSalesEntries (char*, char*);
+void addSaleEntry (FILE*, char*);
+void closeSalesEntryFiles ();
 
-void updateCity (char*, float);
+void updateCity (char*, float, char*);
 void updateItemCategory (char*, float);
 
 void printTopThreeCities ();
@@ -36,11 +40,16 @@ void printBottomThreeCities ();
 void printTopThreeItemCategories ();
 void printBottomThreeItemCategories ();
 
+// For Files with less than 6 options.
+void printCities ();
+void printItemCategories ();
+
 // Structs
 typedef struct city {
 	char name[50]; // E.g. Fort Worth
     double totalSales;
     int order;
+    FILE * filePointer;
     struct city *next;
 } cityNode;
 
@@ -91,17 +100,29 @@ int main(int argc, const char * argv[]) {
 
     // Print the average sales
     printAverageSales(cityCount, totalSales/cityCount);
-
+    
     // Print City Data
-    printTopThreeCities();
-    printBottomThreeCities();
+    if (cityCount >= 3) {
+        printTopThreeCities();
+        printBottomThreeCities();
+    } else {
+        // Less than 6 cities.
+        printCities();
+    }
 
     // Print the average sales for item categories.
     printAverageItemSales(itemCategoryCount, totalSales/itemCategoryCount);
 
     // Print Item Categories Data
-    printTopThreeItemCategories();
-    printBottomThreeItemCategories();
+    if (itemCategoryCount >= 3) {
+        printTopThreeItemCategories();
+        printBottomThreeItemCategories();
+    } else {
+        printItemCategories();
+    }
+
+    // Close all the files.
+    closeSalesEntryFiles();
 
     // Print Ending Time
     printTime();
@@ -154,11 +175,8 @@ void readPurchaseRecordFile(FILE *fp) {
 
         // Update approriately
         totalSales += salesValue;
-        updateCity (cityName, salesValue);
+        updateCity (cityName, salesValue, originalLine);
         updateItemCategory (itemCategoryName, salesValue);
-
-        // Update Files
-        updateSalesEntries (cityName, originalLine);
 
         // Update Total Transaction Count
         totalTransactions++;
@@ -172,15 +190,22 @@ void setupDirectory() {
     int check; 
     check = mkdir("reports", 0777);
 
+    // Here is a link to the documentation I referenced. 
+    // http://pubs.opengroup.org/onlinepubs/009695399/functions/mkdir.html
+
     // Check if directory is created or not 
-    if (check == -1) {
-        //This could also be because reports directory already exists.
-        //printf("Unable to create reports directory\nTerminating Program...\n\n\n");
-        //exit(1); 
+    if (check != 0) {
+        // Failed to create Reports directory.
+        // Could also be because reports directory already exists.
+        if (errno != EEXIST) {
+            // Unless its because it already exists, terminate program.
+            printf("Unable to create reports directory\nTerminating Program...\n\n\n");
+            exit(1); 
+        }
     }
 }
 
-void updateSalesEntries (char cityName[50], char line[255]) {
+FILE *updateSalesEntries (char cityName[50], char line[255]) {
     
     char fileName[64];
     strcpy(fileName, "./reports/");
@@ -191,15 +216,34 @@ void updateSalesEntries (char cityName[50], char line[255]) {
         printf("Cannot open file %s\n", fileName);
     }
 
-    fprintf(output, "%s\n", line);
-    fclose(output);
+    fprintf(output, "%s", line);
+    return output;
 }
 
+void addSaleEntry (FILE * output, char line[255]) {
+    fprintf(output, "%s", line);
+}
+
+void closeSalesEntryFiles () {
+    // Iterate through the linked list.
+    cityNode * current = chead;
+    while (current != NULL) {
+        fclose(current->filePointer);
+        current = current->next; // Move to the next value
+    }
+}
+
+
+
 // Linked List Functions
-void updateCity (char cityName[50], float salesValue) {
+void updateCity (char cityName[50], float salesValue, char line[255]) {
     if (cityCount == 0) {
         // New City
         // No Cities Currently Exist
+
+        // Create File Entry
+        FILE * cityPointer = updateSalesEntries (cityName, line);
+
         // Create head of the linked list.
         chead = malloc(sizeof(cityNode));
         if (chead == NULL) {
@@ -208,6 +252,7 @@ void updateCity (char cityName[50], float salesValue) {
         }
         strcpy(chead->name, cityName);
         chead->totalSales = salesValue;
+        chead->filePointer = cityPointer;
         chead->next = NULL;
         cityCount++;
     }
@@ -223,6 +268,10 @@ void updateCity (char cityName[50], float salesValue) {
             if (strcmp(cityName, current->name) == 0) {
                 // City Exists.
                 current->totalSales += salesValue;
+
+                // Add to File
+                addSaleEntry(current->filePointer, line);
+
                 return;
             }
 
@@ -230,6 +279,10 @@ void updateCity (char cityName[50], float salesValue) {
         }
 
         // City does not Exist.
+
+        // Create File Entry
+        FILE * cityPointer = updateSalesEntries (cityName, line);
+
         current = chead; // Reset Current
 
         while (current->next != NULL) {
@@ -241,6 +294,7 @@ void updateCity (char cityName[50], float salesValue) {
         current->next = malloc(sizeof(cityNode));
         strcpy(current->next->name, cityName);
         current->next->totalSales = salesValue;
+        current->next->filePointer = cityPointer;
         current->next->next = NULL;
 
         // Update CityCount
@@ -471,4 +525,30 @@ void printBottomThreeItemCategories () {
     printf("\t\033[1;36m%*.2lf\033[0m \n", 15, third->totalSales); // Total Sales
 
     printf("=======================================================================\n\n");
+}
+
+void printCities () {
+    printf("\nSales Figures by Cities\n=======================================================================\n");
+
+    cityNode * current = chead;
+    while (current != NULL) {
+        printf("\033[0;33m%*s\033[0m", -50, current->name); // Name
+        printf("\t\033[1;36m%*.2lf\033[0m \n", 15, current->totalSales); // Total Sales
+        current = current->next;
+    }
+
+    printf("=======================================================================\n");
+}
+
+void printItemCategories () {
+    printf("\nSales Figures by Item Categories\n=======================================================================\n");
+
+    itemCategoryNode * current = ihead;
+    while (current != NULL) {
+        printf("\033[0;33m%*s\033[0m", -50, current->name); // Name
+        printf("\t\033[1;36m%*.2lf\033[0m \n", 15, current->totalSales); // Total Sales
+        current = current->next;
+    }
+
+    printf("=======================================================================\n");
 }
