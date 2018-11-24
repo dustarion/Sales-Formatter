@@ -48,7 +48,6 @@ void printItemCategories ();
 typedef struct city {
 	char name[50]; // E.g. Fort Worth
     double totalSales;
-    int order;
     FILE * filePointer;
     struct city *next;
 } cityNode;
@@ -56,7 +55,6 @@ typedef struct city {
 typedef struct itemCategory {
     char name[50]; // E.g. Pet Supplies
     double totalSales;
-    int order;
     struct itemCategory *next;
 } itemCategoryNode;
 
@@ -72,12 +70,16 @@ int totalTransactions = 0;
 
 // Main Code
 int main(int argc, const char * argv[]) {
+	printf("%lf\n", DBL_MAX);
 
     // Print Starting Time
     printTime();
 
     // Check if Correct number of parameters
-    if ((argc < 2)||( argc > 2)) {
+    if (argc < 2) {
+        printf("Required Argument Missing.\nProgram should be executed with an argument containing the filepath to your sales records.\nTry again.\n\n");
+        exit(1);
+    } else if (argc > 2) {
         printf("Please only input one argument.\nTry again.\n\n");
         exit(1);
     }
@@ -93,6 +95,7 @@ int main(int argc, const char * argv[]) {
         printf("Unable to open file %s.\nProgram Terminated\n", argv[1]);
         return 1;
     }
+
 	readPurchaseRecordFile(fp);
 
     // Print the total sales of the year.
@@ -150,6 +153,23 @@ void printAverageItemSales(int numberOfItemCategories, float averageSales) {
     printf("\nThe average sales from \033[0;36m%d\033[0m Item Categories are : \033[1;36m$%.2f\033[0m\n", numberOfItemCategories, averageSales);
 }
 
+void printFormattingError () {
+	printf("Unexpected Formatting Encountered on Line %d\nPlease check your sales records\nTerminating Program\n", ++totalTransactions);
+	exit(1);
+}
+
+void checkFormat (char line[255]) {
+	int tabCount = 0;
+	for(int i = 0; line[i] != '\0'; i++) {
+     	if (line[i] == '\t') {
+        	tabCount++;
+     	}
+  	}
+  	if (tabCount != 5) {
+  		printFormattingError();
+  	}
+}
+
 // File IO Functions
 void readPurchaseRecordFile(FILE *fp) {
     
@@ -162,6 +182,7 @@ void readPurchaseRecordFile(FILE *fp) {
     while(fgets(line,SIZE,fp) != NULL) {
         char originalLine[SIZE+1];
         strcpy(originalLine, line);
+        checkFormat(line);
 
         char cityName[50]; // E.g. Fort Worth
         char itemCategoryName[50];
@@ -171,7 +192,7 @@ void readPurchaseRecordFile(FILE *fp) {
         strcpy(cityName, strtok(NULL, "\t")); // City
         strcpy(itemCategoryName, strtok(NULL, "\t")); // Item Category
         salesValue = atof(strtok(NULL, "\t")); // Sales Value
-        strtok(NULL, "\n"); // Payment Type
+        if (strtok(NULL, "\n") == NULL) { printFormattingError(); } // Payment Type
 
         // Update approriately
         totalSales += salesValue;
