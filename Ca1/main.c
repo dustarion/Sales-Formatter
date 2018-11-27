@@ -70,7 +70,6 @@ int totalTransactions = 0;
 
 // Main Code
 int main(int argc, const char * argv[]) {
-	printf("%lf\n", DBL_MAX);
 
     // Print Starting Time
     printTime();
