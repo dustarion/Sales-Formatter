@@ -104,7 +104,7 @@ int main(int argc, const char * argv[]) {
     printAverageSales(cityCount, totalSales/cityCount);
     
     // Print City Data
-    if (cityCount >= 3) {
+    if (cityCount > 3) {
         printTopThreeCities();
         printBottomThreeCities();
     } else {
@@ -116,7 +116,7 @@ int main(int argc, const char * argv[]) {
     printAverageItemSales(itemCategoryCount, totalSales/itemCategoryCount);
 
     // Print Item Categories Data
-    if (itemCategoryCount >= 3) {
+    if (itemCategoryCount > 3) {
         printTopThreeItemCategories();
         printBottomThreeItemCategories();
     } else {
